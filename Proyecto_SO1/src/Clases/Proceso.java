@@ -1,4 +1,4 @@
-package clases;
+package Clases;
 
 // Esta clase es el PCB (Process Control Block)
 // Es la "carpeta" con toda la info de una tarea del satélite.
