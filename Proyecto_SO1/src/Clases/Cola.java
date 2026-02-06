@@ -1,56 +1,74 @@
-package clases;
+package Clases;
 
-// Esta es TU versión de una lista. 
-// Usaremos esto para la cola de "Listos", "Bloqueados", etc.
 public class Cola {
-    private Nodo inicio; // El primer vagón (Cabeza)
-    private Nodo fin;    // El último vagón (Cola)
-    private int tamano;  // Para saber cuántos procesos hay
+    
+    Nodo inicio;
+    Nodo fin;
 
     public Cola() {
         this.inicio = null;
         this.fin = null;
-        this.tamano = 0;
     }
 
-    // Método para saber si está vacía
+    // Método estándar: Inserta al final
+    public void encolar(Proceso dato) {
+        Nodo nuevo = new Nodo(dato);
+        if (esVacia()) {
+            inicio = nuevo;
+            fin = nuevo;
+        } else {
+            fin.siguiente = nuevo;
+            fin = nuevo;
+        }
+    }
+
+    public Proceso desencolar() {
+        if (esVacia()) return null;
+        
+        Proceso dato = inicio.dato;
+        inicio = inicio.siguiente;
+        if (inicio == null) {
+            fin = null;
+        }
+        return dato;
+    }
+
     public boolean esVacia() {
         return inicio == null;
     }
 
-    // Método ENCOLAR: Agrega un proceso al final
-    public void encolar(Proceso p) {
-        Nodo nuevoNodo = new Nodo(p);
-        
-        if (esVacia()) {
-            inicio = nuevoNodo;
-            fin = nuevoNodo;
-        } else {
-            fin.siguiente = nuevoNodo; // El último se engancha al nuevo
-            fin = nuevoNodo;           // El nuevo pasa a ser el último
-        }
-        tamano++;
-    }
+    // --- NUEVO: INSERTAR POR PRIORIDAD (VIP) ---
+    // (Mayor número = Mayor prioridad, pasa primero)
+    public void encolarPorPrioridad(Proceso nuevoProceso) {
+        Nodo nuevo = new Nodo(nuevoProceso);
 
-    // Método DESENCOLAR: Saca el proceso que está al frente (para CPU)
-    public Proceso desencolar() {
+        // 1. Si está vacía
         if (esVacia()) {
-            return null; // No hay nada que sacar
+            inicio = nuevo;
+            fin = nuevo;
+            return;
+        }
+
+        // 2. Si es más importante que el primero (Cabecera)
+        if (nuevoProceso.prioridad > inicio.dato.prioridad) {
+            nuevo.siguiente = inicio;
+            inicio = nuevo;
+            return;
+        }
+
+        // 3. Buscar su lugar en el medio
+        Nodo actual = inicio;
+        while (actual.siguiente != null && actual.siguiente.dato.prioridad >= nuevoProceso.prioridad) {
+            actual = actual.siguiente;
         }
         
-        Proceso procesoSalida = inicio.dato;
-        inicio = inicio.siguiente; // Movemos el inicio al segundo vagón
-        tamano--;
-        
-        if (inicio == null) { // Si sacamos el último, el fin también es null
-            fin = null;
+        // Insertar
+        nuevo.siguiente = actual.siguiente;
+        actual.siguiente = nuevo;
+
+        // 4. Actualizar fin si quedó de último
+        if (nuevo.siguiente == null) {
+            fin = nuevo;
         }
-        
-        return procesoSalida;
-    }
-    
-    // Para ver el tamaño
-    public int getTamano() {
-        return tamano;
     }
 }
