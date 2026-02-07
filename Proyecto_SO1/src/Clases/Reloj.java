@@ -1,7 +1,6 @@
 package Clases;
 
-// Sin imports raros. Thread es nativo de Java.
-
+// El Reloj es un hilo (Thread) que corre en paralelo al resto del programa
 public class Reloj extends Thread {
     
     Administrador admin;
@@ -18,10 +17,11 @@ public class Reloj extends Thread {
                 Thread.sleep(1000); 
                 
                 // 2. Ejecutamos el ciclo del sistema operativo
+                // Esto actualiza el proceso actual, verifica si terminó y gestiona la memoria
                 admin.ejecutarCiclo();
                 
             } catch (InterruptedException ex) {
-                // Si algo interrumpe el reloj, solo imprimimos el error en consola simple
+                // Si algo interrumpe el reloj, mostramos el error
                 System.out.println("Error en el Reloj: " + ex.getMessage());
             }
         }
