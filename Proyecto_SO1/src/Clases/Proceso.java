@@ -4,23 +4,28 @@ public class Proceso {
     // --- Atributos Básicos ---
     public int id;
     public String nombre;
-    public String estado; // Nuevo, Listo, Ejecución, Bloqueado, Terminado, etc. 
+    public String estado; 
     
-    // --- Atributos de Ejecución ---
-    public int instrucciones;    // Total de instrucciones (rafaga de CPU)
-    public int pc;               // Program Counter (Instrucción actual) [cite: 22, 53, 67]
-    public int mar;              // Memory Address Register [cite: 22, 53, 67]
+    // --- Ejecución ---
+    public int instrucciones;    
+    public int pc;               // Program Counter
+    public int mar;              // Memory Address Register
     
-    // --- Atributos de Planificación ---
-    public int prioridad;        // Para algoritmo de Prioridad Estática 
-    public int deadline;         // Ciclo máximo para finalizar (Para EDF) 
-    public int tiempoRestante;   // Para SRT (instrucciones - pc) [cite: 23, 35]
+    // --- Planificación ---
+    public int prioridad;       
+    public int deadline;        
+    public int tiempoRestante;   
     
-    // --- Atributos de Memoria ---
-    public int tamano;           // Tamaño en memoria para gestión de RAM/Swap [cite: 48]
+    // --- Memoria ---
+    public int tamano;           
 
+    // --- NUEVO: E/S DETERMINISTA (PUNTO 3) ---
+    public int cicloDetonadorES; // ¿En qué instrucción ocurre el bloqueo? (Ej: en la 3)
+    public int duracionES;       // ¿Cuántos ciclos tarda el dispositivo? (Ej: 5 ciclos)
+    public int contadorES;       // Contador interno para saber cuánto lleva esperando
 
-    public Proceso(int id, String nombre, int instrucciones, int prioridad, int deadline, int tamano) {
+    // Constructor Actualizado
+    public Proceso(int id, String nombre, int instrucciones, int prioridad, int deadline, int tamano, int cicloDetonadorES, int duracionES) {
         this.id = id;
         this.nombre = nombre;
         this.instrucciones = instrucciones;
@@ -28,28 +33,23 @@ public class Proceso {
         this.deadline = deadline;
         this.tamano = tamano;
         
-        // Inicialización de estado y registros
+        // Configuración E/S
+        this.cicloDetonadorES = cicloDetonadorES;
+        this.duracionES = duracionES;
+        this.contadorES = 0; // Inicia en 0
+
+        // Inicialización
         this.estado = "Nuevo"; 
-        this.pc = 0;             // Inicia en la instrucción 0 
-        this.mar = 0;            // Inicia en la dirección de memoria 0 
-        this.tiempoRestante = instrucciones; // Al inicio, falta todo el proceso
+        this.pc = 0;             
+        this.mar = 0;            
+        this.tiempoRestante = instrucciones; 
     }
 
-    /**
-     * Simula el avance del proceso en un ciclo de reloj.
-     * Incrementa PC y MAR según el requerimiento del proyecto. 
-     */
     public void ejecutarCiclo() {
         if (this.pc < this.instrucciones) {
-            this.pc++;           // Incrementa contador de programa 
-            this.mar++;          // Incrementa registro de dirección de memoria 
+            this.pc++;           
+            this.mar++;          
             this.tiempoRestante = this.instrucciones - this.pc;
         }
-    }
-    
-    // Método útil para mostrar info en la GUI
-    @Override
-    public String toString() {
-        return nombre + " (ID: " + id + ") | PC: " + pc + " | Deadline: " + deadline;
     }
 }

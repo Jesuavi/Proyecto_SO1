@@ -1,7 +1,6 @@
 package Clases;
 
 public class Cola {
-    
     Nodo inicio;
     Nodo fin;
 
@@ -10,7 +9,11 @@ public class Cola {
         this.fin = null;
     }
 
-    // Método estándar: Inserta al final
+    // --- MÉTODOS BÁSICOS ---
+    public boolean esVacia() {
+        return inicio == null;
+    }
+
     public void encolar(Proceso dato) {
         Nodo nuevo = new Nodo(dato);
         if (esVacia()) {
@@ -24,54 +27,35 @@ public class Cola {
 
     public Proceso desencolar() {
         if (esVacia()) return null;
-        
         Proceso dato = inicio.dato;
         inicio = inicio.siguiente;
-        if (inicio == null) {
-            fin = null;
-        }
+        if (inicio == null) fin = null;
         return dato;
     }
 
-    public boolean esVacia() {
-        return inicio == null;
-    }
+    // =======================================================
+    //   PARTE 1: ALGORITMOS DE PLANIFICACIÓN (Lo que te daba error)
+    // =======================================================
 
-    // --- NUEVO: INSERTAR POR PRIORIDAD (VIP) ---
-    // (Mayor número = Mayor prioridad, pasa primero)
-    public void encolarPorPrioridad(Proceso nuevoProceso) {
-        Nodo nuevo = new Nodo(nuevoProceso);
-
-        // 1. Si está vacía
-        if (esVacia()) {
-            inicio = nuevo;
-            fin = nuevo;
-            return;
-        }
-
-        // 2. Si es más importante que el primero (Cabecera)
-        if (nuevoProceso.prioridad > inicio.dato.prioridad) {
+    // PRIORIDAD: Mayor número va primero
+    public void encolarPorPrioridad(Proceso p) {
+        Nodo nuevo = new Nodo(p);
+        if (esVacia() || p.prioridad > inicio.dato.prioridad) {
             nuevo.siguiente = inicio;
             inicio = nuevo;
+            if (fin == null) fin = nuevo;
             return;
         }
-
-        // 3. Buscar su lugar en el medio
         Nodo actual = inicio;
-        while (actual.siguiente != null && actual.siguiente.dato.prioridad >= nuevoProceso.prioridad) {
+        while (actual.siguiente != null && actual.siguiente.dato.prioridad >= p.prioridad) {
             actual = actual.siguiente;
         }
-        
-        // Insertar
         nuevo.siguiente = actual.siguiente;
         actual.siguiente = nuevo;
-
-        // 4. Actualizar fin si quedó de último
-        if (nuevo.siguiente == null) {
-            fin = nuevo;
-        }
+        if (nuevo.siguiente == null) fin = nuevo;
     }
-    // Para SRT: El que tiene MENOS tiempo restante va primero
+
+    // SRT: Menor tiempo restante va primero
     public void encolarPorTiempoRestante(Proceso p) {
         Nodo nuevo = new Nodo(p);
         if (esVacia() || p.tiempoRestante < inicio.dato.tiempoRestante) {
@@ -89,12 +73,13 @@ public class Cola {
         if (nuevo.siguiente == null) fin = nuevo;
     }
 
-    // Para EDF: El que tiene el DEADLINE más cercano va primero 
+    // EDF: Menor deadline (más urgente) va primero
     public void encolarPorDeadline(Proceso p) {
         Nodo nuevo = new Nodo(p);
         if (esVacia() || p.deadline < inicio.dato.deadline) {
             nuevo.siguiente = inicio;
             inicio = nuevo;
+            if (fin == null) fin = nuevo;
             return;
         }
         Nodo actual = inicio;
@@ -103,5 +88,51 @@ public class Cola {
         }
         nuevo.siguiente = actual.siguiente;
         actual.siguiente = nuevo;
+        if (nuevo.siguiente == null) fin = nuevo;
+    }
+
+    // =======================================================
+    //   PARTE 2: GESTIÓN DE MEMORIA (SWAP)
+    // =======================================================
+
+    // Busca al candidato para expulsar de la RAM (El deadline más lejano)
+    public Proceso obtenerMayorDeadline() {
+        if (esVacia()) return null;
+        Nodo temp = inicio;
+        Proceso mayor = temp.dato;
+        while (temp != null) {
+            // Buscamos el mayor valor (el menos urgente)
+            if (temp.dato.deadline > mayor.deadline) {
+                mayor = temp.dato;
+            }
+            temp = temp.siguiente;
+        }
+        return mayor;
+    }
+
+    // Saca un proceso específico de la fila (para moverlo a disco)
+    public void eliminarPorId(int id) {
+        if (esVacia()) return;
+        
+        // Si es el primero
+        if (inicio.dato.id == id) {
+            desencolar();
+            return;
+        }
+
+        Nodo anterior = inicio;
+        Nodo actual = inicio.siguiente;
+
+        while (actual != null) {
+            if (actual.dato.id == id) {
+                anterior.siguiente = actual.siguiente;
+                if (actual == fin) {
+                    fin = anterior;
+                }
+                return;
+            }
+            anterior = actual;
+            actual = actual.siguiente;
+        }
     }
 }
