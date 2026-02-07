@@ -71,4 +71,37 @@ public class Cola {
             fin = nuevo;
         }
     }
+    // Para SRT: El que tiene MENOS tiempo restante va primero
+    public void encolarPorTiempoRestante(Proceso p) {
+        Nodo nuevo = new Nodo(p);
+        if (esVacia() || p.tiempoRestante < inicio.dato.tiempoRestante) {
+            nuevo.siguiente = inicio;
+            inicio = nuevo;
+            if (fin == null) fin = nuevo;
+            return;
+        }
+        Nodo actual = inicio;
+        while (actual.siguiente != null && actual.siguiente.dato.tiempoRestante <= p.tiempoRestante) {
+            actual = actual.siguiente;
+        }
+        nuevo.siguiente = actual.siguiente;
+        actual.siguiente = nuevo;
+        if (nuevo.siguiente == null) fin = nuevo;
+    }
+
+    // Para EDF: El que tiene el DEADLINE más cercano va primero 
+    public void encolarPorDeadline(Proceso p) {
+        Nodo nuevo = new Nodo(p);
+        if (esVacia() || p.deadline < inicio.dato.deadline) {
+            nuevo.siguiente = inicio;
+            inicio = nuevo;
+            return;
+        }
+        Nodo actual = inicio;
+        while (actual.siguiente != null && actual.siguiente.dato.deadline <= p.deadline) {
+            actual = actual.siguiente;
+        }
+        nuevo.siguiente = actual.siguiente;
+        actual.siguiente = nuevo;
+    }
 }
