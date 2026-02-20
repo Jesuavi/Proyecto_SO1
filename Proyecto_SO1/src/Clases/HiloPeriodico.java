@@ -11,9 +11,8 @@ public class HiloPeriodico extends Thread {
     public void run() {
         while (true) {
             try {
-                Thread.sleep(15000); // Cada 15 segundos
+                Thread.sleep(10000); // Cada 10 segundos
                 Proceso p = GeneradorProcesos.crearProcesoAleatorio("SENSOR");
-                System.out.println("📡 [TAREA PERIÓDICA]: Nuevo reporte de sensores recibido.");
                 admin.admitirProceso(p);
             } catch (InterruptedException e) { return; }
         }

@@ -16,12 +16,12 @@ public class GeneradorProcesos {
         int deadline = 100 + random.nextInt(900);   // 100 a 1000
         int tamano = 5 + random.nextInt(15);        // 5 a 20 MB
         
-        // 30% de probabilidad de que tenga E/S
+        // 50% de probabilidad de que tenga E/S 
         int detonador = 99; 
         int duracion = 0;
-        if (random.nextInt(100) < 30) {
-            detonador = 2 + random.nextInt(8); 
-            duracion = 3 + random.nextInt(5);
+        if (random.nextInt(100) < 50) {
+            detonador = 2 + random.nextInt(5);  // Se bloquea rápido
+            duracion = 10 + random.nextInt(15); // Tarda entre 10 y 25 ciclos en volver
         }
 
         return new Proceso(contadorId, nombre, instrucciones, prioridad, deadline, tamano, detonador, duracion);

@@ -9,7 +9,6 @@ public class Administrador {
     public static final int PRIORIDAD = 3;
     public static final int EDF = 4;
     
-    // --- CONFIGURACIÓN ACTUAL ---
     public int algoritmoActual = ROUND_ROBIN; 
     private int quantum = 2; 
     private int contadorQuantum = 0;
@@ -20,43 +19,59 @@ public class Administrador {
     public Cola colaListoSuspendido = new Cola();   
     public Cola colaBloqueadoSuspendido = new Cola(); 
     
-    // --- RECURSOS ---
+    // --- RECURSOS Y MEMORIA ---
     public Proceso cpu = null;
-    private final int MAX_RAM = 5;       
-    public int procesosEnRAM = 0;
+    public final int MAX_RAM_MB = 128; 
     public static int cicloReloj = 0;
     
-    // --- CONTROL DE EMERGENCIAS ---
     private boolean emergenciaActiva = false;
 
     public Administrador() {}
+
+    public int obtenerRamEnUso() {
+        int uso = 0;
+        if (cpu != null) uso += cpu.tamano;
+        
+        Nodo actualListo = colaListos.inicio;
+        while (actualListo != null) {
+            uso += actualListo.dato.tamano;
+            actualListo = actualListo.siguiente;
+        }
+        
+        Nodo actualBloq = colaBloqueados.inicio;
+        while (actualBloq != null) {
+            uso += actualBloq.dato.tamano;
+            actualBloq = actualBloq.siguiente;
+        }
+        return uso;
+    }
 
     // ================================================================
     //  1. GESTIÓN DE MEMORIA (ADMISIÓN Y SWAPPING)
     // ================================================================
     public void admitirProceso(Proceso p) {
-        if (procesosEnRAM < MAX_RAM) {
+        if (obtenerRamEnUso() + p.tamano <= MAX_RAM_MB) {
             encolarSegunAlgoritmo(p);
-            procesosEnRAM++;
-            System.out.println(" ✅ RAM [" + procesosEnRAM + "/" + MAX_RAM + "]: Ingresa '" + p.nombre + "'");
         } else {
-            // RAM llena: Aplicar Swapping por Deadline
-            Proceso candidato = colaListos.obtenerMayorDeadline();
-            
-            if (candidato != null && candidato.deadline > p.deadline) {
-                // El nuevo es más urgente, sacamos al que tiene mayor deadline
-                colaListos.eliminarPorId(candidato.id);
-                candidato.estado = "Listo-Suspendido";
-                colaListoSuspendido.encolar(candidato);
-                System.out.println(" ⚠️ SWAP OUT: Sale '" + candidato.nombre + "' -> Disco.");
-
-                encolarSegunAlgoritmo(p);
-                System.out.println(" 📥 SWAP IN: Entra '" + p.nombre + "' a RAM.");
-            } else {
-                // El nuevo no es urgente, va directo al disco
-                p.estado = "Listo-Suspendido";
-                colaListoSuspendido.encolar(p);
-                System.out.println(" ⛔ RAM LLENA: '" + p.nombre + "' va directo a Disco.");
+            // RAM LLENA: 1. Sacamos un bloqueado si hay (es lo mejor para liberar RAM)
+            if (!colaBloqueados.esVacia()) {
+                Proceso victima = colaBloqueados.desencolar();
+                victima.estado = "Bloq-Suspendido";
+                colaBloqueadoSuspendido.encolar(victima);
+                encolarSegunAlgoritmo(p); // Ahora sí entra el nuevo a RAM
+            } 
+            // 2. Si no hay bloqueados, aplicamos Swapping a los Listos
+            else {
+                Proceso candidato = colaListos.obtenerMayorDeadline();
+                if (candidato != null && candidato.deadline > p.deadline) {
+                    colaListos.eliminarPorId(candidato.id);
+                    candidato.estado = "Listo-Suspendido";
+                    colaListoSuspendido.encolar(candidato);
+                    encolarSegunAlgoritmo(p);
+                } else {
+                    p.estado = "Listo-Suspendido";
+                    colaListoSuspendido.encolar(p);
+                }
             }
         }
     }
@@ -67,7 +82,7 @@ public class Administrador {
             case SRT:       colaListos.encolarPorSRT(p); break;
             case PRIORIDAD: colaListos.encolarPorPrioridad(p); break;
             case EDF:       colaListos.encolarPorEDF(p); break;
-            default:        colaListos.encolar(p); break; // FCFS y RR
+            default:        colaListos.encolar(p); break;
         }
     }
 
@@ -78,43 +93,42 @@ public class Administrador {
         cicloReloj++; 
         gestionarBloqueados(); 
 
-        // Si el CPU está libre, tomamos un proceso de la cola de listos
         if (cpu == null) {
             if (!colaListos.esVacia()) {
                 cpu = colaListos.desencolar();
                 cpu.estado = "Ejecución";
                 contadorQuantum = 0; 
             } else {
-                return; // CPU Ocioso
+                return; 
             }
         }
         
-        // Ejecutamos un ciclo de instrucción
         cpu.ejecutarCiclo(); 
         contadorQuantum++; 
 
-        // Verificación de Bloqueo por E/S
+        // 🛑 Verificación de Bloqueo por E/S (Planificado)
         if (cpu.pc == cpu.cicloDetonadorES && cpu.duracionES > 0) {
-            cpu.estado = "Bloqueado";
-            cpu.contadorES = 0; 
-            colaBloqueados.encolar(cpu);
-            cpu = null; 
+            bloquearProcesoActual();
             return; 
         }
 
-        // Verificación de Finalización del proceso
-        if (cpu.pc >= cpu.instrucciones) {
-            if (cpu.nombre.startsWith("PROTOCOLO_")) {
-                emergenciaActiva = false; // Apagamos la alarma al terminar la ISR
-            }
+        // 🎲 NUEVO: Bloqueo Aleatorio Espontáneo (10% de probabilidad en cada ciclo)
+        if (!cpu.nombre.startsWith("PROTOCOLO_") && Math.random() < 0.10) {
+            cpu.duracionES = 10 + (int)(Math.random() * 10); // Tarda de 10 a 20 ciclos
+            bloquearProcesoActual();
+            return;
+        }
+
+        // Finalización
+        if (cpu.pc >= cpu.instrucciones || cpu.tiempoRestante <= 0) {
+            if (cpu.nombre.startsWith("PROTOCOLO_")) emergenciaActiva = false; 
             cpu.estado = "Terminado";
             cpu = null; 
-            procesosEnRAM--; 
-            realizarSwapIn(); // Traemos alguien del disco si hay espacio
+            realizarSwapIn(); 
             return; 
         }
 
-        // Quantum para Round Robin (No aplica a la ISR de emergencia)
+        // Round Robin
         if (algoritmoActual == ROUND_ROBIN && contadorQuantum >= quantum) {
             if (!cpu.nombre.startsWith("PROTOCOLO_")) {
                 cpu.estado = "Listo";
@@ -124,39 +138,32 @@ public class Administrador {
         }
     }
 
-    // ================================================================
-    //  3. MANEJO DE INTERRUPCIONES (EMERGENCIAS)
-    // ================================================================
+    private void bloquearProcesoActual() {
+        cpu.estado = "Bloqueado";
+        cpu.contadorES = 0; 
+        colaBloqueados.encolar(cpu);
+        cpu = null; 
+    }
+
     public void generarInterrupcion(String tipoEmergencia) {
-        // Evitar que se solapen múltiples emergencias
         if (emergenciaActiva) return;
-
         emergenciaActiva = true;
-        System.out.println("\n🚨 [ALERTA DE SISTEMA]: " + tipoEmergencia.toUpperCase());
 
-        // Lógica de Meteorito: Elimina un proceso de Listos si existe
         if (tipoEmergencia.equals("Impacto Meteorito")) {
             if (!colaListos.esVacia()) {
-                Proceso victima = colaListos.desencolar(); 
-                System.out.println("☄️ Proceso '" + victima.nombre + "' DESTRUIDO por meteorito.");
-                procesosEnRAM--; 
+                colaListos.desencolar(); 
                 realizarSwapIn(); 
             }
         }
 
-        // Transformamos el nombre (Ej: "Falla de Oxigeno" -> "PROTOCOLO_FALLA_DE_OXIGENO")
         String nombreEmergencia = "PROTOCOLO_" + tipoEmergencia.replace(" ", "_").toUpperCase();
-
-        // Creamos el proceso con ese nuevo nombre
-        Proceso isr = new Proceso(999, nombreEmergencia, 7, 100, 1, 0, 99, 0);
+        Proceso isr = new Proceso(999, nombreEmergencia, 7, 100, 1, 15, 99, 0);
         
-        // Expropiación de CPU: Sacamos al proceso actual y lo guardamos al inicio
         if (this.cpu != null) {
             this.cpu.estado = "Listo";
             this.colaListos.encolarAlInicio(this.cpu); 
         }
         
-        // Asignamos el CPU de inmediato a la emergencia
         this.cpu = isr;
         this.cpu.estado = "Ejecución";
         this.contadorQuantum = 0;
@@ -166,28 +173,45 @@ public class Administrador {
     //  4. MÉTODOS AUXILIARES
     // ================================================================
     private void gestionarBloqueados() {
-        // Revisar y avanzar el tiempo de los procesos Bloqueados en RAM
+        // 1. Avanzar Bloqueados Normales (En RAM)
         Cola temp = new Cola();
         while (!colaBloqueados.esVacia()) {
             Proceso p = colaBloqueados.desencolar();
             p.contadorES++;
             if (p.contadorES >= p.duracionES) {
-                // Terminó su E/S, vuelve a listos
-                encolarSegunAlgoritmo(p);
+                encolarSegunAlgoritmo(p); // Vuelve a Listos
             } else {
                 temp.encolar(p);
             }
         }
-        colaBloqueados = temp;
+        colaBloqueados = temp; 
+
+        // 2. NUEVO: Avanzar Bloqueados Suspendidos (En Disco)
+        Cola tempSusp = new Cola();
+        while (!colaBloqueadoSuspendido.esVacia()) {
+            Proceso p = colaBloqueadoSuspendido.desencolar();
+            p.contadorES++;
+            if (p.contadorES >= p.duracionES) {
+                // Terminó la E/S, pero como está en Disco, pasa a "Listo-Suspendido"
+                p.estado = "Listo-Suspendido";
+                colaListoSuspendido.encolar(p);
+            } else {
+                tempSusp.encolar(p);
+            }
+        }
+        colaBloqueadoSuspendido = tempSusp;
     }
 
     public void realizarSwapIn() {
-        // Traer un proceso del Disco a la RAM si hay espacio
-        if (!colaListoSuspendido.esVacia() && procesosEnRAM < MAX_RAM) {
-            Proceso p = colaListoSuspendido.desencolar();
-            p.estado = "Listo";
-            encolarSegunAlgoritmo(p);
-            procesosEnRAM++;
+        boolean huboEspacio = true;
+        while (huboEspacio && !colaListoSuspendido.esVacia()) {
+            Proceso candidato = colaListoSuspendido.inicio.dato;
+            if (obtenerRamEnUso() + candidato.tamano <= MAX_RAM_MB) {
+                colaListoSuspendido.desencolar();
+                encolarSegunAlgoritmo(candidato);
+            } else {
+                huboEspacio = false; 
+            }
         }
     }
 }
