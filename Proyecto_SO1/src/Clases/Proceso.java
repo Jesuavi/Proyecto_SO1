@@ -1,36 +1,55 @@
-package clases;
+package Clases;
 
-// Esta clase es el PCB (Process Control Block)
-// Es la "carpeta" con toda la info de una tarea del satélite.
 public class Proceso {
+    // --- Atributos Básicos ---
     public int id;
     public String nombre;
-    public String estado; // "Nuevo", "Listo", "Ejecución", etc.
+    public String estado; 
     
-    // Contadores del CPU
-    public int pc;  // Program Counter (dónde va la lectura)
-    public int mar; // Memory Address Register (dirección de memoria)
+    // --- Ejecución ---
+    public int instrucciones;    
+    public int pc;               // Program Counter
+    public int mar;              // Memory Address Register
     
-    // Datos para el Planificador
-    public int prioridad;       // 1 (Alta) a 3 (Baja)
-    public int instrucciones;   // Cuánto dura en total
-    public int deadline;        // Ciclo límite para terminar
+    // --- Planificación ---
+    public int prioridad;       
+    public int deadline;        
+    public int tiempoRestante;   
     
-    // Constructor: Para crear un proceso nuevo
-    public Proceso(int id, String nombre, int instrucciones, int prioridad, int deadline) {
+    // --- Memoria ---
+    public int tamano;           
+
+    // --- NUEVO: E/S DETERMINISTA (PUNTO 3) ---
+    public int cicloDetonadorES; // ¿En qué instrucción ocurre el bloqueo? (Ej: en la 3)
+    public int duracionES;       // ¿Cuántos ciclos tarda el dispositivo? (Ej: 5 ciclos)
+    public int contadorES;       // Contador interno para saber cuánto lleva esperando
+
+    // Constructor Actualizado
+    public Proceso(int id, String nombre, int instrucciones, int prioridad, int deadline, int tamano, int cicloDetonadorES, int duracionES) {
         this.id = id;
         this.nombre = nombre;
         this.instrucciones = instrucciones;
         this.prioridad = prioridad;
         this.deadline = deadline;
-        this.estado = "Nuevo";
-        this.pc = 0;
-        this.mar = 0;
+        this.tamano = tamano;
+        
+        // Configuración E/S
+        this.cicloDetonadorES = cicloDetonadorES;
+        this.duracionES = duracionES;
+        this.contadorES = 0; // Inicia en 0
+
+        // Inicialización
+        this.estado = "Nuevo"; 
+        this.pc = 0;             
+        this.mar = 0;            
+        this.tiempoRestante = instrucciones; 
     }
-    
-    // Método para imprimir los datos (nos sirve para probar)
-    @Override
-    public String toString() {
-        return "ID:" + id + " | " + nombre + " | Estado:" + estado;
+
+    public void ejecutarCiclo() {
+        if (this.pc < this.instrucciones) {
+            this.pc++;           
+            this.mar++;          
+            this.tiempoRestante = this.instrucciones - this.pc;
+        }
     }
 }

@@ -1,4 +1,4 @@
-package clases;
+package Clases;
 
 // El Nodo es como un eslabón de la cadena
 public class Nodo {
