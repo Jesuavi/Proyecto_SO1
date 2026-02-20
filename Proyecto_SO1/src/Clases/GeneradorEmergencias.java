@@ -31,8 +31,8 @@ public class GeneradorEmergencias extends Thread {
                     
                     ultimoBloqueEvaluado = bloqueActual; // Marcamos el bloque como evaluado
                     
-                    // 🎲 Probabilidad de emergencia (lo dejé en 99% para tu prueba)
-                    if (random.nextInt(100) < 99) {
+                    // ?Probabilidad de emergencia 
+                    if (random.nextInt(100) < 30) {
                         
                         String[] emergencias = {
                             "Impacto Meteorito", 
@@ -43,8 +43,7 @@ public class GeneradorEmergencias extends Thread {
                         String evento = emergencias[random.nextInt(emergencias.length)];
                         admin.generarInterrupcion(evento);
                         
-                    } else {
-                        System.out.println("⏳ [Info] Ciclo " + Administrador.cicloReloj + " alcanzado. Todo en orden.");
+                   
                     }
                 }
                 
